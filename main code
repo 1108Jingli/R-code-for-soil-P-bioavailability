@@ -1,0 +1,1163 @@
+setwd("")
+library(lmerTest)
+library(Hmisc)
+library(randomForest)
+library(rfPermute)
+library(A3)
+library(ggplot2)
+library(car)
+library(MuMIn)
+library(piecewiseSEM)
+library(lme4)
+library(nlme)
+library(semEff)
+
+#####Figure 1#####
+#linear mixed-effects models and show the results with the boxplot
+TP_fit <- lmer(TP~Habitat + (1 | Sites), data=raw_AP_TP.dat) #raw_AP_TP.dat is the import data
+summary(TP_fit)
+boxplot(TP~site, data = raw_AP_TP.dat, col = '#f8766d', ylab = 'TP')
+
+AP_fit <- lmer(AP~Habitat + (1 | Sites), data=raw_AP_TP.dat)
+summary(AP_fit)
+boxplot(AP~site, data = raw_AP_TP.dat, col = '#f8766d', ylab = 'AP')
+
+#####Figure 2#####
+#Random forest models and show the results with the histogram
+df_raw_agro <- randomForest(AP ~ MAT+MAP+ACP+ALP+Phytase+TP+pH+Clay+SOC+MBC+Sites, data = raw_agro.dat, ntree = 5000, importance = T)  #raw_agro.dat is the import data
+df_raw_agro
+test1 <- rfPermute(AP ~ MAT+MAP+ACP+ALP+Phytase+TP+pH+Clay+SOC+MBC+Sites, data = raw_agro.dat, ntree =5000)
+df_raw_agro_P <- rp.importance(test1)
+df_raw_agro_P
+write.csv(df_raw_agro_P, 'P_raw_agro.csv')
+require(randomForest)
+raw_agro2 <- a3(AP ~ MAT+MAP+ACP+ALP+Phytase+TP+pH+Clay+SOC+MBC+Sites, raw_agro.dat, randomForest, n.folds = 5, p.acc = 0.001, model.args = list(ntree = 5000)) 
+write.csv(raw_agro2,'total_raw_agro.csv')
+
+df_agro <- read.csv("P_raw_agro.csv")
+df_agro$X <- factor(df_agro$X ,level = df_agro$X)
+ggplot(df_agro) +
+  aes(x = X, weight = X.IncMSE) +
+  geom_bar(fill = "#BB0021FF" ,color = 'black',alpha = 0.5 ,width = 0.8) +
+  scale_y_continuous(expand = c(0, 0))+
+  expand_limits(y=c(0,85))+
+  theme_test(base_size = 20)+ 
+  theme(axis.title = element_text(size = 20),
+        axis.text.x = element_text(colour = "black"),
+        axis.text.y = element_text(colour = "black"),
+        panel.background = element_rect(fill = "aliceblue")) +labs(x = "", y = "Increased in MSE (%)")+
+  theme(axis.title = element_text(size = 25,
+                                  vjust = 1)) + theme(axis.text.x = element_text(vjust = 1,hjust = 1, angle = 45)) +labs(x = 'Agroecosystem')
+
+df_raw_natural <- randomForest(AP ~ MAT+MAP+ACP+ALP+Phytase+TP+pH+SOC+MBC+Sites+TN, data = raw_natural.dat, ntree = 5000, importance = T)  #raw_natural.dat is the import data
+df_raw_natural
+test1 <- rfPermute(AP ~ MAT+MAP+ACP+ALP+Phytase+TP+pH+SOC+MBC+Sites+TN, data = raw_natural.dat, ntree =5000)
+df_raw_natural_P <- rp.importance(test1)
+df_raw_natural_P
+write.csv(df_raw_natural_P, 'P_raw_natural.csv')
+require(randomForest)
+raw_natural2 <- a3(AP ~ MAT+MAP+ACP+ALP+Phytase+TP+pH+SOC+MBC+Sites+TN, raw_natural.dat, randomForest, n.folds = 5, p.acc = 0.001, model.args = list(ntree = 5000)) 
+write.csv(raw_natural2,'total_raw_natural.csv')
+
+df_natural <- read.csv("P_raw_natural.csv")
+df_natural$X <- factor(df_natural$X ,level = df_natural$X)
+ggplot(df_natural) +
+  aes(x = X, weight = X.IncMSE) +
+  geom_bar(fill = "#BB0021FF" ,color = 'black',alpha = 0.5 ,width = 0.8) +
+  scale_y_continuous(expand = c(0, 0))+
+  expand_limits(y=c(0,60))+
+  theme_test(base_size = 20)+ 
+  theme(axis.title = element_text(size = 20),
+        axis.text.x = element_text(colour = "black"),
+        axis.text.y = element_text(colour = "black"),
+        panel.background = element_rect(fill = "aliceblue")) +labs(x = "", y = "Increased in MSE (%)")+
+  theme(axis.title = element_text(size = 25,
+                                  vjust = 1)) + theme(axis.text.x = element_text(vjust = 1,hjust = 1, angle = 45)) +labs(x = 'Natural ecosystem')
+
+#####Figure 3#####
+#linear mixed-effects models and show the results with the forest plot
+raw_agro.dat_1 <- scale(raw_agro.dat[,1:12])      
+raw_natural.dat_1 <- scale(raw_natural.dat[,1:12])
+
+agro_data = cbind(raw_agro.dat_1,raw_agro.dat[,13])   
+natural_data = cbind(raw_natural.dat_1,raw_natural.dat[,13])
+
+colnames(agro_data) <- c("AP","MAT","MAP","ACP","ALP","Phytase","TP","pH","Clay","SOC","MBC","TN" ,"Sites")
+colnames(natural_data) <- c("AP","MAT","MAP","ACP","ALP","Phytase","TP","pH","SOC","TN","MBC","Clay","Sites")
+
+agro_data <- as.data.frame(agro_data)     
+natural_data <- as.data.frame(natural_data)    
+
+agro_data[,1:12] <- as.numeric(unlist(agro_data[,1:12]))
+natural_data[,1:12] <- as.numeric(unlist(natural_data[,1:12]))
+
+fit_agro_raw <- lmer(AP~MAT+ACP+ALP+Phytase+TP+pH+Clay+TN+MBC+(1 | Sites), data = agro_data[,1:13])
+vif(fit_agro_raw)
+
+fit_natural_raw <- lmer(AP~MAT+ACP+ALP+Phytase+TP+pH+Clay+TN+MBC+(1 | Sites), data = natural_data[,1:13])
+vif(fit_natural_raw)
+
+fit_agro <- lmer(AP~MAT+ACP+ALP+Phytase+TP+pH+Clay+TN+MBC+(1 | Sites), data = agro_data[,1:13])
+summary(fit_agro)
+fixef(fit_agro)
+#AIC(fit_agro)
+performance::r2(fit_agro) 
+
+fit_natural <- lmer(AP~MAT+ACP+ALP+Phytase+TP+pH+Clay+TN+MBC+(1 | Sites), data = natural_data[,1:13])
+summary(fit_natural)
+fixef(fit_natural)
+#AIC(fit_natural)
+performance::r2(fit_natural)
+
+stat.lmer_agro <- summary(fit_agro)$coefficients
+stat.lmer_agro
+
+write.csv(stat.lmer_agro, 'stat.lmer_agro.csv')
+
+stat.lmer_agro <- data.frame(stat.lmer_agro, check.names = FALSE)
+stat.lmer_agro$env <- rownames(stat.lmer_agro)
+stat.lmer_agro$sig <- ifelse(stat.lmer_agro$'Pr(>|t|)'<0.05, '0', '1')
+
+ggplot(stat.lmer_agro[-1, ], aes(x = env, y = Estimate)) + 
+  geom_point(aes(shape = sig), size = 4, show.legend = FALSE) + 
+  scale_shape_manual(values = c(19, 1)) +
+  geom_errorbar(aes(ymin = Estimate - `Std. Error`, ymax = Estimate + `Std. Error`), width = 0.25) +
+  geom_hline(yintercept = 0, linetype = 2) + 
+  labs(x = '', y = 'Standardized Mean', title = expression(R^{2}*' = 0.79')) + 
+  theme(panel.grid = element_blank(), panel.background = element_blank(), plot.title = element_text(size = 9), 
+        axis.ticks.y = element_blank(), axis.line.x = element_line(color = 'black')) + scale_y_continuous(limits = c(-0.25, 1), breaks = c(-0.25, 0, 0.25, 0.5, 0.75, 1)) +
+  coord_flip()
+
+#natural
+stat.lmer_natural <- summary(fit_natural)$coefficients
+stat.lmer_natural
+
+write.csv(stat.lmer_natural, 'stat.lmer_natural.csv')
+
+stat.lmer_natural <- data.frame(stat.lmer_natural, check.names = FALSE)
+stat.lmer_natural$env <- rownames(stat.lmer_natural)
+stat.lmer_natural$sig <- ifelse(stat.lmer_natural$'Pr(>|t|)'<0.05, '0', '1')
+
+ggplot(stat.lmer_natural[-1, ], aes(x = env, y = Estimate)) +  
+  geom_point(aes(shape = sig), size = 4, show.legend = FALSE) +  
+  scale_shape_manual(values = c(19, 1)) +
+  geom_errorbar(aes(ymin = Estimate - `Std. Error`, ymax = Estimate + `Std. Error`), width = 0.25) + 
+  geom_hline(yintercept = 0, linetype = 2) +  
+  labs(x = '', y = 'Standardized Mean', title = expression(R^{2}*' = 0.70')) +  
+  theme(panel.grid = element_blank(), panel.background = element_blank(), plot.title = element_text(size = 9), 
+        axis.ticks.y = element_blank(), axis.line.x = element_line(color = 'black')) + scale_y_continuous(limits = c(-0.2, 0.5), breaks = c(-0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5)) +
+  coord_flip()  
+  
+
+#####Figure 4#####
+#piecewiseSEM
+raw_agro.dat_1 <- scale(raw_agro.dat[,1:12])     
+raw_natural.dat_1 <- scale(raw_natural.dat[,1:12])
+
+#agro
+pca_agro <- prcomp(raw_agro.dat_1[,4:5])
+pho_agro <- pca_agro$x    #PCA dimension reduction analysis was performed for ACP and ALP
+
+agro_1 =cbind(raw_agro.dat_1[,1:3],pho_agro[,1]) 
+colnames(agro_1) <- c("AP","MAT","MAP","phosphatase")    
+agro_2 = cbind(agro_1,raw_agro.dat_1[,6:12])  
+agro_data = cbind(agro_2,raw_agro.dat[,13])   
+colnames(agro_data) <- c("AP","MAT","MAP","phosphatase","phytase","TP","pH","Clay","SOC","MBC","TN" ,"Sites")  
+#class(agro_data)   
+agro_data <- as.data.frame(agro_data)   
+#class(agro_data[,1:11])
+agro_data[,1:11] <- as.numeric(unlist(agro_data[,1:11]))
+
+#natural
+pca_natural <- prcomp(raw_natural.dat_1[,4:5])
+pho_natural <- pca_natural$x    #PCA dimension reduction analysis was performed for ACP and ALP
+
+natural_1 =cbind(raw_natural.dat_1[,1:3],pho_natural[,1])  
+colnames(natural_1) <- c("AP","MAT","MAP","phosphatase")    
+natural_2 = cbind(natural_1,raw_natural.dat_1[,6:12]) 
+natural_data = cbind(natural_2,raw_natural.dat[,13])   
+colnames(natural_data) <- c("AP","MAT","MAP","phosphatase","phytase","TP","pH","SOC","TN","MBC","Clay" ,"Sites")  
+#class(natural_data)   
+natural_data <- as.data.frame(natural_data)  
+#class(natural_data[,1:11])
+natural_data[,1:11] <- as.numeric(unlist(natural_data[,1:11]))
+
+#agro
+agro.psem_9 <- psem(
+  lme4::lmer(AP~pH+Clay+phosphatase+phytase+MBC+TP+(1 | Sites), data = agro_data),
+  lme4::lmer(TP~pH+Clay+phosphatase+phytase+MBC+(1 | Sites), data = agro_data),
+  lme4::lmer(MBC~pH+Clay+phosphatase+phytase+(1 | Sites), data = agro_data),
+  lme4::lmer(phosphatase~MAT+pH+Clay+TN+(1 | Sites), data = agro_data),
+  lme4::lmer(phytase~phosphatase+pH+Clay+(1 | Sites), data = agro_data),
+  lme4::lmer(TN~MAT+pH+Clay+(1 | Sites), data = agro_data),
+  lme4::lmer(pH~MAT+Clay+(1 | Sites), data = agro_data),
+  lme4::lmer(Clay~MAT+(1 | Sites), data = agro_data))
+
+summary(agro.psem_9, .progressBar = F) 
+plot(agro.psem_9) 
+
+agro.semeff_9 <- list(
+  lme4::lmer(AP~pH+Clay+phosphatase+phytase+MBC+TP+(1 | Sites), data = agro_data),
+  lme4::lmer(TP~pH+Clay+phosphatase+phytase+MBC+(1 | Sites), data = agro_data),
+  lme4::lmer(MBC~pH+Clay+phosphatase+phytase+(1 | Sites), data = agro_data),
+  lme4::lmer(phosphatase~MAT+pH+Clay+TN+(1 | Sites), data = agro_data),
+  lme4::lmer(phytase~phosphatase+pH+Clay+(1 | Sites), data = agro_data),
+  lme4::lmer(TN~MAT+pH+Clay+(1 | Sites), data = agro_data),
+  lme4::lmer(pH~MAT+Clay+(1 | Sites), data = agro_data),
+  lme4::lmer(Clay~MAT+(1 | Sites), data = agro_data))
+
+agro_9.sem.boot <- bootEff(agro.semeff_9, R = 1000, ran.eff = "Sites")
+
+agro_9.sem.eff <- semEff(agro_9.sem.boot)
+
+summary(agro_9.sem.eff, "AP")
+agro_9_effect_AP <- getTotEff(agro_9.sem.eff, "AP")
+write.table(agro_9_effect_AP,'agro_9_total_effect_AP.csv')
+
+#natural
+natural.psem_2 <- psem(
+  lme4::lmer(AP~MAT+pH+Clay+phosphatase+phytase+MBC+TP+(1 | Sites), data = natural_data),
+  lme4::lmer(TP~MAT+pH+Clay+phosphatase+phytase+MBC+(1 | Sites), data = natural_data),
+  lme4::lmer(MBC~MAT+pH+Clay+phosphatase+phytase+(1 | Sites), data = natural_data),
+  lme4::lmer(phosphatase~MAT+pH+Clay+TN+(1 | Sites), data = natural_data),
+  lme4::lmer(phytase~phosphatase+MAT+pH+Clay+(1 | Sites), data = natural_data),
+  lme4::lmer(TN~MAT+pH+Clay+(1 | Sites), data = natural_data),
+  lme4::lmer(pH~MAT+Clay+(1 | Sites), data = natural_data),
+  lme4::lmer(Clay~MAT+(1 | Sites), data = natural_data))
+
+summary(natural.psem_2, .progressBar = F)
+plot(natural.psem_2)
+
+natural.semeff_2 <- list(
+  lme4::lmer(AP~MAT+pH+Clay+phosphatase+phytase+MBC+TP+(1 | Sites), data = natural_data),
+  lme4::lmer(TP~MAT+pH+Clay+phosphatase+phytase+MBC+(1 | Sites), data = natural_data),
+  lme4::lmer(MBC~MAT+pH+Clay+phosphatase+phytase+(1 | Sites), data = natural_data),
+  lme4::lmer(phosphatase~MAT+pH+Clay+TN+(1 | Sites), data = natural_data),
+  lme4::lmer(phytase~phosphatase+MAT+pH+Clay+(1 | Sites), data = natural_data),
+  lme4::lmer(TN~MAT+pH+Clay+(1 | Sites), data = natural_data),
+  lme4::lmer(pH~MAT+Clay+(1 | Sites), data = natural_data),
+  lme4::lmer(Clay~MAT+(1 | Sites), data = natural_data))
+
+natural_2.sem.boot <- bootEff(natural.semeff_2, R = 1000, ran.eff = "Sites")
+
+natural_2.sem.eff <- semEff(natural_2.sem.boot)
+
+summary(natural_2.sem.eff, "AP")
+natural_2_effect_AP <- getTotEff(natural_2.sem.eff, "AP")
+write.table(natural_2_effect_AP,'natural_2_total_effect_AP.csv')
+
+#####Figure 5#####
+#linear mixed-effects models and show the results with the boxplot
+total_gene_fit <- lmer(total_gene~Habitat + (1 | Sites), data=raw_gene.dat) #raw_gene.dat is the import data
+summary(total_gene_fit)
+boxplot(total_gene~site, data = raw_gene.dat.dat, col = '#f8766d', ylab = 'TP')
+
+ACP_fit <- lmer(ACP~Habitat + (1 | Sites), data=raw_gene.dat)
+summary(ACP_fit)
+boxplot(ACP~site, data = raw_gene.dat.dat, col = '#f8766d', ylab = 'TP')
+
+ALP_fit <- lmer(ALP~Habitat + (1 | Sites), data=raw_gene.dat)
+summary(ALP_fit)
+boxplot(ALP~site, data = raw_gene.dat.dat, col = '#f8766d', ylab = 'TP')
+
+phytase_fit <- lmer(phytase~Habitat + (1 | Sites), data=raw_gene.dat)
+summary(phytase_fit)
+boxplot(phytase~site, data = raw_gene.dat.dat, col = '#f8766d', ylab = 'TP')
+
+#####Figure 6#####
+#Random forest models and show the results with the histogram
+df_raw_agro <- randomForest(AP ~ aphA+olpA+phoN+phoA+phoD+phoX+appA+phy+Sites, data = raw_agro.dat, ntree = 5000, importance = T)
+df_raw_agro
+test1 <- rfPermute(AP ~ aphA+olpA+phoN+phoA+phoD+phoX+appA+phy+Sites, data = raw_agro.dat, ntree =5000)
+df_raw_agro_P <- rp.importance(test1)
+df_raw_agro_P
+write.csv(df_raw_agro_P, 'P_raw_agro_gene.csv')
+require(randomForest)
+raw_agro2 <- a3(AP ~ aphA+olpA+phoN+phoA+phoD+phoX+appA+phy+Sites, raw_agro.dat, randomForest, n.folds = 5, p.acc = 0.001, model.args = list(ntree = 5000)) 
+write.csv(raw_agro2,'total_raw_agro.csv')
+
+df_agro <- read.csv("P_raw_agro.csv")
+df_agro$X <- factor(df_agro$X ,level = df_agro$X)
+ggplot(df_agro) +
+  aes(x = X, weight = X.IncMSE) +
+  geom_bar(fill = "#BB0021FF" ,color = 'black',alpha = 0.5 ,width = 0.8) +
+  scale_y_continuous(expand = c(0, 0))+
+  expand_limits(y=c(0,85))+
+  theme_test(base_size = 20)+ 
+  theme(axis.title = element_text(size = 20),
+        axis.text.x = element_text(colour = "black"),
+        axis.text.y = element_text(colour = "black"),
+        panel.background = element_rect(fill = "aliceblue")) +labs(x = "", y = "Increased in MSE (%)")+
+  theme(axis.title = element_text(size = 25,
+                                  vjust = 1)) + theme(axis.text.x = element_text(vjust = 1,hjust = 1, angle = 45)) +labs(x = 'Agroecosystem')
+
+df_raw_natural <- randomForest(AP ~ aphA+olpA+phoN+phoA+phoD+phoX+appA+phy+Sites, data = raw_natural.dat, ntree = 5000, importance = T)
+df_raw_natural
+test1 <- rfPermute(AP ~ aphA+olpA+phoN+phoA+phoD+phoX+appA+phy+Sites, data = raw_natural.dat, ntree =5000)
+df_raw_natural_P <- rp.importance(test1)
+df_raw_natural_P
+write.csv(df_raw_natural_P, 'P_raw_natural_gene.csv')
+require(randomForest)
+raw_natural2 <- a3(AP ~ aphA+olpA+phoN+phoA+phoD+phoX+appA+phy+Sites, raw_natural.dat, randomForest, n.folds = 5, p.acc = 0.001, model.args = list(ntree = 5000))  
+write.csv(raw_natural2,'total_raw_natural.csv')
+
+df_natural <- read.csv("P_raw_natural.csv")
+df_natural$X <- factor(df_natural$X ,level = df_natural$X)
+ggplot(df_natural) +
+  aes(x = X, weight = X.IncMSE) +
+  geom_bar(fill = "#BB0021FF" ,color = 'black',alpha = 0.5 ,width = 0.8) +
+  scale_y_continuous(expand = c(0, 0))+
+  expand_limits(y=c(0,60))+
+  theme_test(base_size = 20)+ 
+  theme(axis.title = element_text(size = 20),
+        axis.text.x = element_text(colour = "black"),
+        axis.text.y = element_text(colour = "black"),
+        panel.background = element_rect(fill = "aliceblue")) +labs(x = "", y = "Increased in MSE (%)")+
+  theme(axis.title = element_text(size = 25,
+                                  vjust = 1)) + theme(axis.text.x = element_text(vjust = 1,hjust = 1, angle = 45)) +labs(x = 'Natural ecosystem')
+
+#####Figure 7#####
+#linear mixed-effects models and show the results with the forest plot
+raw_agro.dat <- read.csv("raw_agroecosystems_P_gene.csv")
+raw_natural.dat <- read.csv("raw_natural_P_gene.csv")
+
+raw_agro.dat_1 <- scale(raw_agro.dat[,1:9])     
+raw_natural.dat_1 <- scale(raw_natural.dat[,1:9])
+
+agro_data = cbind(raw_agro.dat_1,raw_agro.dat[,10])   
+natural_data = cbind(raw_natural.dat_1,raw_natural.dat[,10])
+
+colnames(agro_data) <- c("AP","aphA","olpA","phoN","phoA","phoD","phoX","appA","phy","Sites")
+colnames(natural_data) <- c("AP","aphA","olpA","phoN","phoA","phoD","phoX","appA","phy","Sites")
+
+agro_data <- as.data.frame(agro_data)    
+natural_data <- as.data.frame(natural_data)    
+
+agro_data[,1:9] <- as.numeric(unlist(agro_data[,1:9]))
+natural_data[,1:9] <- as.numeric(unlist(natural_data[,1:9]))
+
+
+#Multicollinearity analysis of data
+#variance inflation factor (VIF)
+fit_agro_raw <- lmer(AP~aphA+olpA+phoN+phoA+phoD+phoX+appA+phy+(1 | Sites), data = agro_data[,1:10])
+vif(fit_agro_raw)     
+
+fit_agro_raw <- lmer(AP~aphA+olpA+phoN+phoA+phoX+appA+phy+(1 | Sites), data = agro_data[,1:10])
+vif(fit_agro_raw)
+
+fit_agro_raw <- lmer(AP~aphA+olpA+phoN+phoX+appA+phy+(1 | Sites), data = agro_data[,1:10])
+vif(fit_agro_raw)
+
+
+fit_natural_raw <- lmer(AP~aphA+olpA+phoN+phoA+phoD+phoX+appA+phy+(1 | Sites), data = natural_data[,1:10])
+vif(fit_natural_raw)
+
+#The linear mixed model was used to simulate the data
+fit_agro <- lmer(AP~aphA+olpA+phoN+phoX+appA+phy+(1 | Sites), data = agro_data[,1:10])
+summary(fit_agro)
+fixef(fit_agro)
+#AIC(fit_agro)
+performance::r2(fit_agro) 
+
+fit_natural <- lmer(AP~aphA+olpA+phoN+phoA+phoD+phoX+appA+phy+(1 | Sites), data = natural_data[,1:10])
+summary(fit_natural)
+fixef(fit_natural)
+#AIC(fit_natural)
+performance::r2(fit_natural)
+
+#draw the forest plot
+#agro
+stat.lmer_agro <- summary(fit_agro)$coefficients
+stat.lmer_agro
+
+write.csv(stat.lmer_agro, 'stat.lmer_agro.csv')
+
+#draw a forest plot to show the standardized regression coefficient, standard error and P-value results of each independent variable 
+stat.lmer_agro <- data.frame(stat.lmer_agro, check.names = FALSE)
+stat.lmer_agro$env <- rownames(stat.lmer_agro)
+stat.lmer_agro$sig <- ifelse(stat.lmer_agro$'Pr(>|t|)'<0.05, '0', '1')
+
+ggplot(stat.lmer_agro[-1, ], aes(x = env, y = Estimate)) +  
+  geom_point(aes(shape = sig), size = 4, show.legend = FALSE) + 
+  scale_shape_manual(values = c(19, 1)) +
+  geom_errorbar(aes(ymin = Estimate - `Std. Error`, ymax = Estimate + `Std. Error`), width = 0.25) + 
+  geom_hline(yintercept = 0, linetype = 2) + 
+  labs(x = '', y = 'Standardized Mean', title = expression(R^{2}*' = 0.79')) + 
+  theme(panel.grid = element_blank(), panel.background = element_blank(), plot.title = element_text(size = 9), 
+        axis.ticks.y = element_blank(), axis.line.x = element_line(color = 'black')) + scale_y_continuous(limits = c(-0.25, 1), breaks = c(-0.25, 0, 0.25, 0.5, 0.75, 1)) +
+  coord_flip() 
+
+#draw the forest plot
+#natural
+stat.lmer_natural <- summary(fit_natural)$coefficients
+stat.lmer_natural
+
+write.csv(stat.lmer_natural, 'stat.lmer_natural.csv')
+
+#draw a forest plot to show the standardized regression coefficient, standard error and P-value results of each independent variable
+stat.lmer_natural <- data.frame(stat.lmer_natural, check.names = FALSE)
+stat.lmer_natural$env <- rownames(stat.lmer_natural)
+stat.lmer_natural$sig <- ifelse(stat.lmer_natural$'Pr(>|t|)'<0.05, '0', '1')
+
+ggplot(stat.lmer_natural[-1, ], aes(x = env, y = Estimate)) + 
+  geom_point(aes(shape = sig), size = 4, show.legend = FALSE) + 
+  scale_shape_manual(values = c(19, 1)) +
+  geom_errorbar(aes(ymin = Estimate - `Std. Error`, ymax = Estimate + `Std. Error`), width = 0.25) + 
+  geom_hline(yintercept = 0, linetype = 2) +
+  labs(x = '', y = 'Standardized Mean', title = expression(R^{2}*' = 0.70')) + 
+  theme(panel.grid = element_blank(), panel.background = element_blank(), plot.title = element_text(size = 9), 
+        axis.ticks.y = element_blank(), axis.line.x = element_line(color = 'black')) + scale_y_continuous(limits = c(-0.2, 0.5), breaks = c(-0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5)) +
+  coord_flip()  
+
+#####Figure S1#####
+#show the correlation matrix with a bubble diagram
+raw_agro.dat <- log(raw_agro.dat + 1, 10)
+agro_spearman <- cor(raw_agro.dat, method = 'spearman')
+write.csv(agro_spearman, 'agro_spearman_r.csv')
+agro_spearman <- rcorr(as.matrix(agro_spearman), type = 'spearman')  
+agro_spearman$P
+write.csv(agro_spearman$P, 'agro_spearman_P.csv')
+
+raw_agro_correlation_matrix.dat <- read.csv("raw_agro_correlation_matrix.csv")        #read database in .csv files
+raw_agro_correlation_matrix.dat$var_x<-factor(raw_agro_correlation_matrix.dat$var_x, levels = c('AP', 'MAT', 'MAP', 'ACP', 'ALP', 'Phytase', 'TP', 'pH', 'Clay', 'SOC', 'TN', 'MBC', 'MBN', 'Longitude', 'Latitude', 'Elevation'))
+raw_agro_correlation_matrix.dat$var_y<-factor(raw_agro_correlation_matrix.dat$var_y, levels = c('AP', 'MAT', 'MAP', 'ACP', 'ALP', 'Phytase', 'TP', 'pH', 'Clay', 'SOC', 'TN', 'MBC', 'MBN', 'Longitude', 'Latitude', 'Elevation'))
+ggplot(data=raw_agro_correlation_matrix.dat,aes(x=var_y,y=var_x))+
+  geom_point(aes(size=abs(value),color=value))+
+  scale_color_gradient2(high  = "#FF0000",mid = "white", low = "#6495ED",
+                        limits=c(-1,1))+
+  scale_size_continuous(range = c(5,15)) +
+  guides(size="none")+theme_bw()
+
+raw_natural.dat <- log(raw_natural.dat + 1, 10)
+natural_spearman <- cor(raw_natural.dat, method = 'spearman')
+write.csv(natural_spearman, 'natural_spearman_r.csv')
+natural_spearman <- rcorr(as.matrix(natural_spearman), type = 'spearman')  
+natural_spearman$P
+write.csv(natural_spearman$P, 'natural_spearman_P.csv')
+
+raw_natural_correlation_matrix.dat <- read.csv("raw_natural_correlation_matrix.csv")      #read database in .csv files
+raw_natural_correlation_matrix.dat$var_x<-factor(raw_natural_correlation_matrix.dat$var_x, levels = c('AP', 'MAT', 'MAP', 'ACP', 'ALP', 'Phytase', 'TP', 'pH', 'Clay', 'SOC', 'TN', 'MBC', 'MBN', 'Longitude', 'Latitude', 'Elevation'))
+raw_natural_correlation_matrix.dat$var_y<-factor(raw_natural_correlation_matrix.dat$var_y, levels = c('AP', 'MAT', 'MAP', 'ACP', 'ALP', 'Phytase', 'TP', 'pH', 'Clay', 'SOC', 'TN', 'MBC', 'MBN', 'Longitude', 'Latitude', 'Elevation'))
+ggplot(data=raw_natural_correlation_matrix.dat,aes(x=var_y,y=var_x))+
+  geom_point(aes(size=abs(value),color=value))+
+  scale_color_gradient2(high  = "#FF0000",mid = "white", low = "#6495ED",
+                        limits=c(-1,1))+
+  scale_size_continuous(range = c(5,15)) +
+  guides(size="none")+theme_bw()
+
+#####Figure S2#####
+#the priori models of piecewiseSEM
+
+#agro
+pca_agro <- prcomp(raw_agro.dat_1[,4:5])
+pho_agro <- pca_agro$x    #PCA dimension reduction analysis was performed for ACP and ALP
+
+agro_1 =cbind(raw_agro.dat_1[,1:3],pho_agro[,1]) 
+colnames(agro_1) <- c("AP","MAT","MAP","phosphatase") 
+agro_2 = cbind(agro_1,raw_agro.dat_1[,6:12])  #The following columns are merged by column
+agro_data = cbind(agro_2,raw_agro.dat[,13])    #The following columns are merged by column
+colnames(agro_data) <- c("AP","MAT","MAP","phosphatase","phytase","TP","pH","Clay","SOC","MBC","TN" ,"Sites")   
+#class(agro_data)    
+agro_data <- as.data.frame(agro_data)     
+#class(agro_data[,1:11])
+agro_data[,1:11] <- as.numeric(unlist(agro_data[,1:11]))
+
+#natural
+pca_natural <- prcomp(raw_natural.dat_1[,4:5])
+pho_natural <- pca_natural$x    #PCA dimension reduction analysis was performed for ACP and ALP
+
+natural_1 =cbind(raw_natural.dat_1[,1:3],pho_natural[,1])
+colnames(natural_1) <- c("AP","MAT","MAP","phosphatase")
+natural_2 = cbind(natural_1,raw_natural.dat_1[,6:12])  #The following columns are merged by column
+natural_data = cbind(natural_2,raw_natural.dat[,13])    #The following columns are merged by column
+colnames(natural_data) <- c("AP","MAT","MAP","phosphatase","phytase","TP","pH","Clay","SOC","MBC","TN" ,"Sites") 
+#class(natural_data)   
+natural_data <- as.data.frame(natural_data) 
+#class(natural_data[,1:11])
+natural_data[,1:11] <- as.numeric(unlist(natural_data[,1:11]))
+
+
+res.fa <- data.frame(matrix(NA, nrow = 150, ncol = 9))
+
+temp<-coefs(psem(
+  lme(AP~MAT+pH+Clay+TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = agro_data),
+  lme(TP~MAT+pH+Clay+TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = agro_data),
+  lme(MBC~MAT+pH+Clay+TN+phosphatase+phytase, random = ~ 1 | Sites , data = agro_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(phytase~phosphatase+MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = agro_data)
+))
+
+res.fa[1,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[2,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[3,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[4,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[5,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[6,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[7,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[8,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[9,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[10,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~MAT+pH+Clay+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = agro_data),
+  lme(TP~MAT+pH+Clay+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = agro_data),
+  lme(MBC~MAT+pH+Clay+phosphatase+phytase, random = ~ 1 | Sites , data = agro_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(phytase~phosphatase+MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = agro_data)
+))
+
+res.fa[11,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[12,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[13,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[14,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[15,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[16,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[17,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[18,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[19,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[20,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~MAT+pH+TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = agro_data),
+  lme(TP~MAT+pH+TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = agro_data),
+  lme(MBC~MAT+pH+TN+phosphatase+phytase, random = ~ 1 | Sites , data = agro_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(phytase~phosphatase+MAT+pH+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = agro_data)
+))
+
+res.fa[21,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[22,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[23,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[24,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[25,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[26,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[27,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[28,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[29,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[30,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~MAT+Clay+TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = agro_data),
+  lme(TP~MAT+Clay+TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = agro_data),
+  lme(MBC~MAT+Clay+TN+phosphatase+phytase, random = ~ 1 | Sites , data = agro_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(phytase~phosphatase+MAT+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = agro_data)
+))
+
+res.fa[31,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[32,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[33,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[34,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[35,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[36,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[37,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[38,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[39,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[40,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~pH+Clay+TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = agro_data),
+  lme(TP~pH+Clay+TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = agro_data),
+  lme(MBC~pH+Clay+TN+phosphatase+phytase, random = ~ 1 | Sites , data = agro_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(phytase~phosphatase+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = agro_data)
+))
+
+res.fa[41,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[42,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[43,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[44,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[45,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[46,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[47,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[48,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[49,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[50,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~MAT+pH+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = agro_data),
+  lme(TP~MAT+pH+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = agro_data),
+  lme(MBC~MAT+pH+phosphatase+phytase, random = ~ 1 | Sites , data = agro_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(phytase~phosphatase+MAT+pH, random = ~ 1 | Sites , data = agro_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = agro_data)
+))
+
+res.fa[51,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[52,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[53,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[54,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[55,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[56,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[57,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[58,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[59,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[60,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~MAT+Clay+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = agro_data),
+  lme(TP~MAT+Clay+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = agro_data),
+  lme(MBC~MAT+Clay+phosphatase+phytase, random = ~ 1 | Sites , data = agro_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(phytase~phosphatase+MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = agro_data)
+))
+
+res.fa[61,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[62,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[63,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[64,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[65,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[66,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[67,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[68,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[69,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[70,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~MAT+TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = agro_data),
+  lme(TP~MAT+TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = agro_data),
+  lme(MBC~MAT+TN+phosphatase+phytase, random = ~ 1 | Sites , data = agro_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(phytase~phosphatase+MAT+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = agro_data)
+))
+
+res.fa[71,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[72,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[73,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[74,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[75,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[76,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[77,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[78,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[79,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[80,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~pH+Clay+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = agro_data),
+  lme(TP~pH+Clay+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = agro_data),
+  lme(MBC~pH+Clay+phosphatase+phytase, random = ~ 1 | Sites , data = agro_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(phytase~phosphatase+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = agro_data)
+))
+
+res.fa[81,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[82,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[83,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[84,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[85,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[86,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[87,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[88,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[89,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[90,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~pH+TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = agro_data),
+  lme(TP~pH+TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = agro_data),
+  lme(MBC~pH+TN+phosphatase+phytase, random = ~ 1 | Sites , data = agro_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(phytase~phosphatase+pH+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = agro_data)
+))
+
+res.fa[91,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[92,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[93,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[94,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[95,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[96,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[97,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[98,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[99,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[100,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~Clay+TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = agro_data),
+  lme(TP~Clay+TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = agro_data),
+  lme(MBC~Clay+TN+phosphatase+phytase, random = ~ 1 | Sites , data = agro_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(phytase~phosphatase+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = agro_data)
+))
+
+res.fa[101,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[102,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[103,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[104,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[105,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[106,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[107,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[108,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[109,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[110,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~MAT+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = agro_data),
+  lme(TP~MAT+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = agro_data),
+  lme(MBC~MAT+phosphatase+phytase, random = ~ 1 | Sites , data = agro_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(phytase~phosphatase+MAT, random = ~ 1 | Sites , data = agro_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = agro_data)
+))
+
+res.fa[111,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[112,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[113,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[114,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[115,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[116,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[117,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[118,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[119,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[120,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~pH+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = agro_data),
+  lme(TP~pH+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = agro_data),
+  lme(MBC~pH+phosphatase+phytase, random = ~ 1 | Sites , data = agro_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(phytase~phosphatase+pH, random = ~ 1 | Sites , data = agro_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = agro_data)
+))
+
+res.fa[121,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[122,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[123,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[124,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[125,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[126,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[127,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[128,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[129,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[130,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~Clay+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = agro_data),
+  lme(TP~Clay+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = agro_data),
+  lme(MBC~Clay+phosphatase+phytase, random = ~ 1 | Sites , data = agro_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(phytase~phosphatase+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = agro_data)
+))
+
+res.fa[131,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[132,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[133,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[134,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[135,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[136,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[137,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[138,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[139,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[140,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = agro_data),
+  lme(TP~TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = agro_data),
+  lme(MBC~TN+phosphatase+phytase, random = ~ 1 | Sites , data = agro_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(phytase~phosphatase+TN, random = ~ 1 | Sites , data = agro_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = agro_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = agro_data)
+))
+
+res.fa[141,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[142,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[143,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[144,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[145,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[146,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[147,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[148,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[149,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[150,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+colnames(res.fa)[1]<-"Response"
+colnames(res.fa)[2]<-"Predictor"
+colnames(res.fa)[3]<-"Estimate"
+colnames(res.fa)[4]<-"Std.Error"
+colnames(res.fa)[5]<-"DF"
+colnames(res.fa)[6]<-"Crit.Value"
+colnames(res.fa)[7]<-"P.Value"
+colnames(res.fa)[8]<-"Std.Estimate"
+write.csv(res.fa,'res.fa.shannon.csv')
+
+#natural
+res.fa <- data.frame(matrix(NA, nrow = 150, ncol = 9))
+
+temp<-coefs(psem(
+  lme(AP~MAT+pH+Clay+TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = natural_data),
+  lme(TP~MAT+pH+Clay+TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = natural_data),
+  lme(MBC~MAT+pH+Clay+TN+phosphatase+phytase, random = ~ 1 | Sites , data = natural_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(phytase~phosphatase+MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = natural_data)
+))
+
+res.fa[1,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[2,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[3,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[4,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[5,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[6,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[7,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[8,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[9,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[10,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~MAT+pH+Clay+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = natural_data),
+  lme(TP~MAT+pH+Clay+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = natural_data),
+  lme(MBC~MAT+pH+Clay+phosphatase+phytase, random = ~ 1 | Sites , data = natural_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(phytase~phosphatase+MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = natural_data)
+))
+
+res.fa[11,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[12,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[13,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[14,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[15,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[16,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[17,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[18,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[19,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[20,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~MAT+pH+TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = natural_data),
+  lme(TP~MAT+pH+TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = natural_data),
+  lme(MBC~MAT+pH+TN+phosphatase+phytase, random = ~ 1 | Sites , data = natural_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(phytase~phosphatase+MAT+pH+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = natural_data)
+))
+
+res.fa[21,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[22,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[23,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[24,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[25,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[26,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[27,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[28,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[29,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[30,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~MAT+Clay+TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = natural_data),
+  lme(TP~MAT+Clay+TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = natural_data),
+  lme(MBC~MAT+Clay+TN+phosphatase+phytase, random = ~ 1 | Sites , data = natural_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(phytase~phosphatase+MAT+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = natural_data)
+))
+
+res.fa[31,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[32,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[33,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[34,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[35,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[36,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[37,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[38,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[39,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[40,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~pH+Clay+TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = natural_data),
+  lme(TP~pH+Clay+TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = natural_data),
+  lme(MBC~pH+Clay+TN+phosphatase+phytase, random = ~ 1 | Sites , data = natural_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(phytase~phosphatase+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = natural_data)
+))
+
+res.fa[41,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[42,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[43,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[44,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[45,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[46,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[47,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[48,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[49,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[50,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~MAT+pH+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = natural_data),
+  lme(TP~MAT+pH+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = natural_data),
+  lme(MBC~MAT+pH+phosphatase+phytase, random = ~ 1 | Sites , data = natural_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(phytase~phosphatase+MAT+pH, random = ~ 1 | Sites , data = natural_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = natural_data)
+))
+
+res.fa[51,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[52,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[53,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[54,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[55,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[56,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[57,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[58,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[59,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[60,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~MAT+Clay+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = natural_data),
+  lme(TP~MAT+Clay+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = natural_data),
+  lme(MBC~MAT+Clay+phosphatase+phytase, random = ~ 1 | Sites , data = natural_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(phytase~phosphatase+MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = natural_data)
+))
+
+res.fa[61,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[62,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[63,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[64,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[65,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[66,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[67,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[68,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[69,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[70,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~MAT+TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = natural_data),
+  lme(TP~MAT+TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = natural_data),
+  lme(MBC~MAT+TN+phosphatase+phytase, random = ~ 1 | Sites , data = natural_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(phytase~phosphatase+MAT+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = natural_data)
+))
+
+res.fa[71,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[72,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[73,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[74,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[75,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[76,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[77,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[78,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[79,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[80,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~pH+Clay+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = natural_data),
+  lme(TP~pH+Clay+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = natural_data),
+  lme(MBC~pH+Clay+phosphatase+phytase, random = ~ 1 | Sites , data = natural_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(phytase~phosphatase+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = natural_data)
+))
+
+res.fa[81,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[82,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[83,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[84,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[85,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[86,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[87,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[88,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[89,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[90,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~pH+TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = natural_data),
+  lme(TP~pH+TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = natural_data),
+  lme(MBC~pH+TN+phosphatase+phytase, random = ~ 1 | Sites , data = natural_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(phytase~phosphatase+pH+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = natural_data)
+))
+
+res.fa[91,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[92,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[93,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[94,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[95,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[96,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[97,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[98,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[99,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[100,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~Clay+TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = natural_data),
+  lme(TP~Clay+TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = natural_data),
+  lme(MBC~Clay+TN+phosphatase+phytase, random = ~ 1 | Sites , data = natural_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(phytase~phosphatase+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = natural_data)
+))
+
+res.fa[101,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[102,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[103,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[104,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[105,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[106,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[107,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[108,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[109,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[110,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~MAT+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = natural_data),
+  lme(TP~MAT+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = natural_data),
+  lme(MBC~MAT+phosphatase+phytase, random = ~ 1 | Sites , data = natural_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(phytase~phosphatase+MAT, random = ~ 1 | Sites , data = natural_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = natural_data)
+))
+
+res.fa[111,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[112,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[113,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[114,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[115,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[116,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[117,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[118,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[119,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[120,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~pH+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = natural_data),
+  lme(TP~pH+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = natural_data),
+  lme(MBC~pH+phosphatase+phytase, random = ~ 1 | Sites , data = natural_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(phytase~phosphatase+pH, random = ~ 1 | Sites , data = natural_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = natural_data)
+))
+
+res.fa[121,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[122,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[123,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[124,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[125,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[126,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[127,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[128,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[129,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[130,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~Clay+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = natural_data),
+  lme(TP~Clay+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = natural_data),
+  lme(MBC~Clay+phosphatase+phytase, random = ~ 1 | Sites , data = natural_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(phytase~phosphatase+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = natural_data)
+))
+
+res.fa[131,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[132,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[133,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[134,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[135,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[136,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[137,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[138,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[139,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[140,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+temp<-coefs(psem(
+  lme(AP~TN+phosphatase+phytase+MBC+TP, random = ~ 1 | Sites , data = natural_data),
+  lme(TP~TN+phosphatase+phytase+MBC, random = ~ 1 | Sites, data = natural_data),
+  lme(MBC~TN+phosphatase+phytase, random = ~ 1 | Sites , data = natural_data),
+  lme(phosphatase~MAT+pH+Clay+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(phytase~phosphatase+TN, random = ~ 1 | Sites , data = natural_data),
+  lme(TN~MAT+pH+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(pH~MAT+Clay, random = ~ 1 | Sites , data = natural_data),
+  lme(Clay~MAT, random = ~ 1 | Sites , data = natural_data)
+))
+
+res.fa[141,]<-with(temp, temp[grepl('AP', Response) & grepl('TP', Predictor),])
+res.fa[142,]<-with(temp, temp[grepl('AP', Response) & grepl('MBC', Predictor),])
+res.fa[143,]<-with(temp, temp[grepl('AP', Response) & grepl('phytase', Predictor),])
+res.fa[144,]<-with(temp, temp[grepl('AP', Response) & grepl('phosphatase', Predictor),])
+res.fa[145,]<-with(temp, temp[grepl('TP', Response) & grepl('MBC', Predictor),])
+res.fa[146,]<-with(temp, temp[grepl('TP', Response) & grepl('phytase', Predictor),])
+res.fa[147,]<-with(temp, temp[grepl('TP', Response) & grepl('phosphatase', Predictor),])
+res.fa[148,]<-with(temp, temp[grepl('MBC', Response) & grepl('phosphatase', Predictor),])
+res.fa[149,]<-with(temp, temp[grepl('MBC', Response) & grepl('phytase', Predictor),])
+res.fa[150,]<-with(temp, temp[grepl('phytase', Response) & grepl('phosphatase', Predictor),])
+
+colnames(res.fa)[1]<-"Response"
+colnames(res.fa)[2]<-"Predictor"
+colnames(res.fa)[3]<-"Estimate"
+colnames(res.fa)[4]<-"Std.Error"
+colnames(res.fa)[5]<-"DF"
+colnames(res.fa)[6]<-"Crit.Value"
+colnames(res.fa)[7]<-"P.Value"
+colnames(res.fa)[8]<-"Std.Estimate"
+write.csv(res.fa,'res.fa.shannon.csv')
